@@ -1,0 +1,20 @@
+{
+  "id": "ckeys",
+  "name": "C-Key",
+  "description": "A compact touch bar with a numpad and brightness/volume sliders. Shows up as an on-screen keyboard for the focused app.",
+  "version": "0.2.0",
+  "author": "mcloving-exe",
+  "license": "MIT",
+  "icon": "keyboard",
+  "type": "daemon",
+  "capabilities": [
+    "daemon"
+  ],
+  "component": "./CKeysDaemon.qml",
+  "settings": "./CKeysSettings.qml",
+  "requires_dms": ">=1.6.0",
+  "permissions": [
+    "settings_read",
+    "settings_write"
+  ]
+}

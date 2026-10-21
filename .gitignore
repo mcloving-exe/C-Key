@@ -1,0 +1,12 @@
+# binario compilado (se compila con install.sh)
+ckeys-hold
+*.o
+
+# notas personales, no van al repo
+plugin.txt
+
+# scripts de desarrollo local
+deploy.sh
+
+# sistema
+.DS_Store
