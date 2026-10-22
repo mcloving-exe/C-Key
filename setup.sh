@@ -138,6 +138,9 @@ for f in $QML_FILES; do
         get "$f" "$TMP/$f"
         [ -s "$TMP/$f" ] || { say "  no pude descargar $f"; exit 1; }
         cp "$TMP/$f" "$PLUGIN_DIR/$f"
+        if [ "$(id -u)" -eq 0 ]; then
+            chown "$(stat -c %u:%g "$PLUGIN_DIR")" "$PLUGIN_DIR/$f" 2>/dev/null || true
+        fi
         say "  $f"
     fi
 done
@@ -163,7 +166,10 @@ else
         say "  $HELPER_BIN"
 
         if [ "$(id -u)" -eq 0 ]; then
-            UID_DMS="${SUDO_UID:-$(id -u)}"
+            UID_DMS="${SUDO_UID:-}"
+            if [ -z "$UID_DMS" ]; then
+                UID_DMS="$(stat -c %u "$NIRI_CFG" 2>/dev/null || stat -c %u "$PLUGIN_DIR" 2>/dev/null || id -u)"
+            fi
         else
             UID_DMS="$(id -u)"
         fi
