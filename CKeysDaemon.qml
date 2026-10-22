@@ -6,11 +6,8 @@ import qs.Common
 import qs.Services
 import qs.Modules.Plugins
 
-// Daemon de C-Keys.
-//
-// El panel no es un widget de escritorio (se podria arrastrar), es una ventana
-// propia en la capa overlay, anclada abajo al centro y del ancho del touchpad
-// de la laptop, para que el mapeo dedo -> tecla sea 1:1.
+// Daemon de C-Key: la barra va en una ventana propia de la capa overlay,
+// anclada abajo al centro, del ancho del touchpad.
 Item {
     id: daemon
 
@@ -21,9 +18,8 @@ Item {
     property bool isPinned: false
     property double lastToggle: 0
 
-    // Medidas por defecto: las del touchpad real (100 x 58 mm segun el
-    // kernel), convertidas a px logicos de la pantalla (310 mm / 1536 px).
-    // Con esto el mapeo dedo -> tecla es 1:1, como en una pantalla tactil.
+    // Por defecto el tamano real del touchpad (100 x 58 mm), para que el
+    // mapeo dedo -> tecla sea 1:1.
     property int barWidth: 495
     property int barHeight: 287
     property color barColor: "#f0f0f0"
@@ -51,9 +47,7 @@ Item {
         }
     }
 
-    // El helper nativo (lee el teclado y el touchpad) es un programa aparte,
-    // ckeys-hold, que corre como root: ver el README. Si no esta corriendo,
-    // el panel no puede aparecer, asi que avisamos.
+    // ckeys-hold corre aparte y como root (ver el README).
     readonly property string helperPidfile: (Quickshell.env("XDG_RUNTIME_DIR") || "/run/user/1000") + "/ckeys-hold.pid"
 
     FileView {
@@ -92,7 +86,7 @@ Item {
             left: true
         }
 
-        // Centrado horizontal con margins: las ventanas solo se anclan a bordes.
+        // Las ventanas solo se anclan a bordes, el centrado va por margenes.
         WlrLayershell.margins {
             left: Math.max(0, Math.round((win.targetScreen?.width ?? 1920) / 2 - daemon.barWidth / 2))
             bottom: 0
@@ -169,7 +163,6 @@ Item {
             return "typed " + k;
         }
 
-        // Coordenadas del dedo sobre el touchpad, normalizadas (0..1).
         function touch(x: string, y: string): string {
             const nx = parseFloat(x);
             const ny = parseFloat(y);
@@ -183,10 +176,8 @@ Item {
             return "released";
         }
 
-        // Centro de la pantalla donde esta el panel, en pixeles logicos:
-        // "x y ancho alto". El ancho y alto le sirven al helper para saber si
-        // esa pantalla es la que cubre xwayland-satellite (1920x1080), donde
-        // puede mover el cursor de forma exacta.
+        // "x y ancho alto" de la pantalla, para que el helper sepa si es la
+        // que cubre xwayland-satellite, donde puede mover el cursor exacto.
         function center(): string {
             const scr = win.targetScreen;
             if (!scr)

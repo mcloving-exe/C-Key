@@ -5,8 +5,7 @@ import qs.Common
 import qs.Services
 import qs.Widgets
 
-// El touch bar en si. Lo mete el daemon dentro de un PanelWindow,
-// en la capa overlay y anclado abajo al centro de la pantalla.
+// La barra en si: la mete el daemon dentro de su PanelWindow.
 Item {
     id: bar
 
@@ -16,14 +15,12 @@ Item {
     property bool showIcons: true
     property bool pinned: false
 
-    // Estado del dedo sobre el touchpad, en coordenadas normalizadas (0..1).
     property real touchX: -1
     property real touchY: -1
     property bool touchActive: false
     property string activeKey: ""
 
-    // Las teclas van 20% mas oscuras que el panel, y las dos cosas
-    // escalan con el mismo slider de opacidad.
+    // Las teclas van un 20% mas oscuras que el panel.
     readonly property real keyOpacity: panelOpacity * 0.8
 
     readonly property real brightness: DisplayService.brightnessLevel / 100
@@ -180,14 +177,12 @@ Item {
         }
     }
 
-    // Escribe la tecla en la aplicacion que este enfocada, como un teclado en pantalla.
     function sendKey(k) {
         if (!k)
             return
         Quickshell.execDetached(["wtype", "--", k])
     }
 
-    // Llega desde ckeys-hold cuando el dedo toca el touchpad.
     function handleTouch(nx, ny) {
         return bar.hitTest(nx, ny);
     }

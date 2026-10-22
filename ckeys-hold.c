@@ -1,15 +1,12 @@
 /*
- * ckeys-hold - le avisa a DMS cuando se mantienen presionadas las teclas
- * de la combinacion (por defecto Mod+Shift+C), para que C-Key aparezca
- * solo mientras estan apretadas y se escondan al soltarlas.
+ * ckeys-hold - avisa a DMS cuando se mantienen presionadas las teclas de la
+ * combinacion (por defecto Mod+Shift+C), para que la barra de C-Key aparezca
+ * solo mientras estan apretadas.
  *
- * Ademas, mientras la combinacion esta apretada, intercepta el touchpad:
- * agarra el dispositivo (y su nodo "Mouse" hermano, que es el que mueve
- * el cursor) y manda las coordenadas del dedo a DMS, para que el touchpad
- * funcione como touch bar. Al soltar, se sueltan los dispositivos y todo
- * vuelve a su comportamiento normal.
- *
- * El teclado se lee por evdev sin hacer grab, asi que no interfiere con nada.
+ * Mientras la combinacion esta apretada tambien agarra el touchpad (y su
+ * nodo "Mouse" hermano) y manda las coordenadas del dedo a DMS, para que el
+ * touchpad funcione como touch bar. El teclado se lee sin grab, asi que no
+ * interfiere con nada.
  *
  * Uso: ckeys-hold [mod] [shift] [tecla] [--touchpad]
  */
@@ -47,8 +44,7 @@ struct dev {
 	int event_no;
 	int kind;
 	char phys[128];
-	/* rangos del multitactil, por dispositivo */
-	int x_min, x_max, y_min, y_max;
+	int x_min, x_max, y_min, y_max;  /* rangos del multitactil */
 };
 
 static int mod_key = KEY_LEFTMETA;
@@ -59,25 +55,21 @@ static int use_touchpad = 1;
 static struct dev devs[MAX_DEVS];
 static int ndevs = 0;
 
-/* el touchpad que usamos como touch bar */
-static int tp_index = -1;
+static int tp_index = -1;  /* el touchpad que usamos como touch bar */
 
-/* todos los dispositivos de puntero: se agarran mientras el panel esta activo
- * para que el cursor no se mueva y los clics no lleguen a la aplicacion */
+/* los punteros se agarran mientras el panel esta activo, para que el cursor
+ * no se mueva y los clics no lleguen a la aplicacion */
 static int pointer_index[MAX_DEVS];
 static int n_pointers = 0;
 
 static int abs_x_min, abs_x_max, abs_y_min, abs_y_max;
 
-/* los punteros estan agarrados mientras la combinacion este apretada */
 static int grabbed = 0;
 
 /* ------------------------------------------------------------------ util */
 
-/* El helper corre como root (es la unica forma de abrir /dev/input: la
- * politica de dispositivos del cgroup solo deja pasar a root). Pero el IPC
- * lo tiene que hacer el usuario de la sesion, asi que ahi se bajan los
- * privilegios. */
+/* Root es la unica forma de abrir /dev/input, pero el IPC lo tiene que
+ * hacer el usuario de la sesion. */
 static uid_t session_uid(void) {
 	const char *uid = getenv("CKEYS_UID");
 	if (uid && *uid)
@@ -85,8 +77,7 @@ static uid_t session_uid(void) {
 	return getuid();
 }
 
-/* Si el helper arrancó como root (por ejemplo arrancado a mano), baja al
- * usuario de la sesion para el IPC. Si ya corre como usuario, no hace nada. */
+/* Si arranca como root, baja al usuario de la sesion para el IPC. */
 static void drop_privileges(void) {
 	if (geteuid() != 0)
 		return;
@@ -99,8 +90,7 @@ static void drop_privileges(void) {
 	if (setuid(uid) < 0)
 		_exit(127);
 
-	/* el directorio de runtime y el home son los del usuario de la sesion */
-	char runtime[128];
+	char runtime[128];  /* el runtime y el home son los del usuario */
 	snprintf(runtime, sizeof(runtime), "/run/user/%u", (unsigned)uid);
 	setenv("XDG_RUNTIME_DIR", runtime, 1);
 
@@ -112,12 +102,10 @@ static void drop_privileges(void) {
 		setenv("DISPLAY", ":0", 1);
 }
 
-/* Si el IPC con DMS falla varias veces seguidas es que DMS se fue: el helper
- * tambien se va, para no quedar huérfano. */
 static int fallos_ipc = 0;
 
-/* Devuelve si el display X11 tiene exactamente ese tamano, o sea si esa pantalla
- * es la que cubre xwayland-satellite. */
+/* Si el display X11 tiene exactamente ese tamano, es la pantalla que cubre
+ * xwayland-satellite. */
 static int x11_cubre(int w, int h) {
 	FILE *f = popen("xdotool getdisplaygeometry 2>/dev/null", "r");
 	if (!f)
@@ -226,10 +214,9 @@ static void flush_sync(int fd) {
 	(void)written;
 }
 
-/* El plugin sabe en que pantalla esta el panel y devuelve el centro en
- * pixeles logicos. Para mover el cursor se usa un mouse virtual: primero se
- * empuja hacia la esquina (el compositor lo topa alli, sin importar la
- * aceleracion) y despues se aplica el delta hasta el centro. */
+/* El plugin devuelve el centro de la pantalla donde esta el panel. Con un
+ * mouse virtual primero se empuja el cursor a una esquina (el compositor lo
+ * topa ahi, sin importar la aceleracion) y despues se aplica el delta. */
 static void move_cursor_to_center(void) {
 	FILE *f = popen("dms ipc call ckeys center 2>/dev/null", "r");
 	if (!f)
@@ -245,8 +232,8 @@ static void move_cursor_to_center(void) {
 	if (!ok)
 		return;
 
-	/* Si la pantalla es la que cubre xwayland-satellite, el movimiento
-	 * absoluto de X11 es exacto. Preguntamos el tamano real del display. */
+	/* en la pantalla de xwayland-satellite el movimiento absoluto de X11
+	 * es exacto */
 	if (x11_cubre(sw, sh)) {
 		char cmd[128];
 		snprintf(cmd, sizeof(cmd), "xdotool mousemove %d %d 2>/dev/null", cx, cy);
@@ -278,9 +265,8 @@ static int bit_is_set(const unsigned char *bits, int code) {
 	return (bits[code / 8] >> (code % 8)) & 1;
 }
 
-/* Estado de las teclas seguido a partir de los propios eventos EV_KEY.
- * EVIOCGKEY no devolvia el estado en este sistema, asi que se lleva la
- * cuenta a mano: 1 = apretada, 0 = soltada. */
+/* EVIOCGKEY no devolvia el estado en este sistema, asi que el estado de
+ * cada tecla se sigue a mano con los eventos EV_KEY. */
 static unsigned char key_state[KEY_MAX + 1];
 
 static void track_key_event(int code, int value) {
@@ -402,9 +388,9 @@ static int combo_held(void) {
 
 /* ----------------------------------------------------------------- touch */
 
-/* Mandar un IPC por cada evento de movimiento es demasiado lento (cada llamada
- * arranca el cliente de DMS). Se juntan las coordenadas y se manda como maximo
- * una vez cada TOUCH_MIN_INTERVAL_MS, y solo si de verdad cambiaron. */
+/* Un IPC por cada evento de movimiento es demasiado lento (cada llamada
+ * arranca el cliente de DMS), asi que se agrupan y se manda uno cada
+ * TOUCH_MIN_INTERVAL_MS, y solo si las coordenadas cambiaron. */
 #define TOUCH_MIN_INTERVAL_MS 25
 #define TOUCH_MIN_DELTA 0.0015
 
@@ -504,7 +490,7 @@ static void handle_touchpad_events(int fd, int idx, int enviar) {
 
 static char pidfile_path[128] = "";
 
-/* El pidfile va en el directorio de runtime del usuario de la sesion. */
+/* el pidfile va en el runtime del usuario de la sesion */
 static void armar_pidfile(void) {
 	snprintf(pidfile_path, sizeof(pidfile_path), "/run/user/%u/ckeys-hold.pid",
 	         (unsigned)session_uid());

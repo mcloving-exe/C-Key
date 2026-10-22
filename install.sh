@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
-# Instala el helper nativo de C-Key y lo deja como servicio del sistema.
+# Instala el helper nativo de C-Key como servicio del sistema.
 #
-# El helper lee el teclado y el touchpad por evdev. En Linux eso lo controla la
-# politica de dispositivos del cgroup: solo el compositor (niri) y root pueden
-# abrir /dev/input, porque el compositor lo toma en exclusiva con el TakeDevice
-# de logind. Por eso el servicio va como root, y el propio helper baja
-# privilegios para hablar con DMS por IPC.
+# El helper lee el teclado y el touchpad por evdev, y solo el compositor y root
+# pueden abrir /dev/input, asi que el servicio va como root y el helper baja
+# privilegios para el IPC.
 #
 # Uso:  sudo ./install.sh
 
