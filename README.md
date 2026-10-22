@@ -38,7 +38,23 @@ The full video (13 s, 1200×800) is in [`media/c-key.mp4`](media/c-key.mp4):
 
 ## Install
 
-The plugin itself is just QML:
+The short way, on niri:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mcloving-exe/C-Key/main/setup.sh | sh
+```
+
+That installs the plugin, the native helper and the niri shortcut. It asks for sudo only
+to install the helper, and it touches your niri config by adding a single `include`
+line (the original is backed up first).
+
+To undo it:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mcloving-exe/C-Key/main/setup.sh | sh -s -- --uninstall
+```
+
+By hand, the plugin itself is just QML:
 
 ```bash
 mkdir -p ~/.config/DankMaterialShell/plugins/C-Key
