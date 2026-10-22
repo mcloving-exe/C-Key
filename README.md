@@ -1,7 +1,19 @@
 # C-Key
 
+<p align="center">
+  <img src="media/c-key.gif" width="600" alt="C-Key in action">
+</p>
+
 A compact touch bar for DankMaterialShell: a numpad, a brightness slider and a volume
 slider, floating at the bottom center of the screen.
+
+## Demo
+
+The full video (13 s, 1200×800) is in [`media/c-key.mp4`](media/c-key.mp4):
+
+- Your numpad explodes, because your laptop doesn't have one.
+- `Super + Shift + C` and the touch bar shows up on the screen.
+- Your touchpad *is* the touch bar: the keys you press are the keys you get.
 
 ## What it does
 
