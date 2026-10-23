@@ -9,7 +9,7 @@ import qs.Widgets
 Item {
     id: bar
 
-    property color barColor: "#f0f0f0"
+    property color barColor: Theme.surfaceText
     property color accentColor: Theme.primary
     property real panelOpacity: 0.6
     property bool showIcons: true
@@ -50,14 +50,14 @@ Item {
                     id: brightnessTrack
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    radius: 12
+                    radius: Theme.cornerRadius
                     color: Theme.withAlpha(Theme.surfaceContainerLow, bar.keyOpacity)
 
                     Rectangle {
                         width: parent.width
                         height: parent.height * bar.brightness
                         anchors.bottom: parent.bottom
-                        radius: 12
+                        radius: Theme.cornerRadius
                         color: bar.barColor
                     }
 
@@ -78,7 +78,7 @@ Item {
                     visible: bar.showIcons
                     Layout.alignment: Qt.AlignHCenter
                     name: "light_mode"
-                    size: 18
+                    size: Theme.iconSizeSmall
                     color: Theme.surfaceVariantText
                 }
             }
@@ -94,14 +94,14 @@ Item {
                     id: volumeTrack
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    radius: 12
+                    radius: Theme.cornerRadius
                     color: Theme.withAlpha(Theme.surfaceContainerLow, bar.keyOpacity)
 
                     Rectangle {
                         width: parent.width
                         height: parent.height * bar.volume
                         anchors.bottom: parent.bottom
-                        radius: 12
+                        radius: Theme.cornerRadius
                         color: bar.barColor
                     }
 
@@ -122,7 +122,7 @@ Item {
                     visible: bar.showIcons
                     Layout.alignment: Qt.AlignHCenter
                     name: "volume_up"
-                    size: 18
+                    size: Theme.iconSizeSmall
                     color: Theme.surfaceVariantText
                 }
             }
@@ -147,7 +147,7 @@ Item {
                         Layout.preferredHeight: 28
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        radius: 7
+                        radius: Theme.cornerRadiusSmall
                         color: {
                             if (bar.activeKey === keyChar)
                                 return Theme.primary
@@ -156,12 +156,11 @@ Item {
                             return Theme.withAlpha(Theme.surfaceContainerLow, bar.keyOpacity)
                         }
 
-                        Text {
+                        StyledText {
                             anchors.centerIn: parent
                             text: keyRect.keyChar
                             color: bar.activeKey === keyRect.keyChar ? Theme.onPrimary : Theme.surfaceText
                             font.pixelSize: Theme.fontSizeLarge
-                            font.family: "monospace"
                         }
 
                         MouseArea {

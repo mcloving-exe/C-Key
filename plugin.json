@@ -1,8 +1,8 @@
 {
   "id": "ckeys",
   "name": "C-Key",
-  "description": "A compact touch bar with a numpad and brightness/volume sliders. Shows up as an on-screen keyboard for the focused app.",
-  "version": "0.2.0",
+  "description": "A compact touch bar with a numpad and brightness/volume sliders that types into the focused app. The touchpad mode needs a separate root helper (see README).",
+  "version": "0.2.1",
   "author": "mcloving-exe",
   "license": "MIT",
   "icon": "keyboard",

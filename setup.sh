@@ -173,6 +173,7 @@ else
         else
             UID_DMS="$(id -u)"
         fi
+        GID_DMS="$(id -g "$UID_DMS" 2>/dev/null || echo "$UID_DMS")"
 
         if [ -f "$UNIT" ] && ! grep -q "CKEYS_UID=$UID_DMS" "$UNIT"; then
             say "  el servicio existia con otro usuario, lo actualizo"
@@ -185,6 +186,7 @@ else
             printf '[Service]\n'
             printf 'Type=simple\n'
             printf 'Environment=CKEYS_UID=%s\n' "$UID_DMS"
+            printf 'Environment=CKEYS_GID=%s\n' "$GID_DMS"
             printf 'ExecStart=%s\n' "$HELPER_BIN"
             printf 'Restart=on-failure\n'
             printf 'RestartSec=2\n\n'

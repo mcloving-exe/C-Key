@@ -22,7 +22,7 @@ Item {
     // mapeo dedo -> tecla sea 1:1.
     property int barWidth: 495
     property int barHeight: 287
-    property color barColor: "#f0f0f0"
+    property color barColor: Theme.surfaceText
     property color accentColor: Theme.primary
     property real panelOpacity: 0.6
     property bool showIcons: true
@@ -32,7 +32,7 @@ Item {
             return
         barWidth = Math.round(pluginService.loadPluginData(pluginId, "barWidth", 495))
         barHeight = Math.round(pluginService.loadPluginData(pluginId, "barHeight", 287))
-        barColor = pluginService.loadPluginData(pluginId, "barColor", "#f0f0f0")
+        barColor = pluginService.loadPluginData(pluginId, "barColor", Theme.surfaceText)
         accentColor = pluginService.loadPluginData(pluginId, "accentColor", Theme.primary)
         panelOpacity = pluginService.loadPluginData(pluginId, "panelOpacity", 60) / 100
         showIcons = pluginService.loadPluginData(pluginId, "showIcons", true)

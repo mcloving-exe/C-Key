@@ -33,7 +33,7 @@ The full video (13 s, 1200×800) is in [`media/c-key.mp4`](media/c-key.mp4):
 
 - DankMaterialShell 1.6 or newer.
 - `wtype`, to type the keys into the focused app.
-- A C compiler, if you want to build the helper.
+- `xdotool` and a C compiler, for the touchpad helper.
 - niri, for the shortcut and for hiding the cursor (see below).
 
 ## Install
@@ -64,7 +64,9 @@ cp plugin.json CKeysDaemon.qml CKeysBar.qml CKeysSettings.qml \
 
 Then in DMS: **Settings → Plugins → scan for plugins → enable C-Key**.
 
-The touchpad part needs a small native helper:
+The touchpad part needs a small native helper, run with sudo from your user account
+(the installer takes your real uid and gid from `SUDO_UID`/`SUDO_GID` and refuses to
+run as root):
 
 ```bash
 sudo ./install.sh

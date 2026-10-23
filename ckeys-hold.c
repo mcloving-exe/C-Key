@@ -77,13 +77,25 @@ static uid_t session_uid(void) {
 	return getuid();
 }
 
+/* El gid no siempre es igual al uid. */
+static gid_t session_gid(void) {
+	const char *gid = getenv("CKEYS_GID");
+	if (gid && *gid)
+		return (gid_t)atoi(gid);
+
+	struct passwd *pw = getpwuid(session_uid());
+	if (pw)
+		return pw->pw_gid;
+	return getgid();
+}
+
 /* Si arranca como root, baja al usuario de la sesion para el IPC. */
 static void drop_privileges(void) {
 	if (geteuid() != 0)
 		return;
 
 	uid_t uid = session_uid();
-	gid_t gid = uid;
+	gid_t gid = session_gid();
 
 	if (setgroups(0, NULL) < 0 || setgid(gid) < 0)
 		_exit(127);
@@ -104,18 +116,67 @@ static void drop_privileges(void) {
 
 static int fallos_ipc = 0;
 
+/* Corre argv como el usuario de la sesion y junta su stdout en out.
+ * Sin shell y sin heredar los fds de /dev/input. */
+static int run_capture(const char *const argv[], char *out, size_t outlen) {
+	int p[2];
+	if (pipe(p) < 0)
+		return 0;
+
+	pid_t pid = fork();
+	if (pid < 0) {
+		close(p[0]);
+		close(p[1]);
+		return 0;
+	}
+
+	if (pid == 0) {
+		dup2(p[1], STDOUT_FILENO);
+		close(p[0]);
+		close(p[1]);
+		drop_privileges();
+		execvp(argv[0], (char *const *)argv);
+		_exit(127);
+	}
+
+	close(p[1]);
+	size_t used = 0;
+	ssize_t n;
+	while (used + 1 < outlen && (n = read(p[0], out + used, outlen - 1 - used)) > 0)
+		used += (size_t)n;
+	out[used] = '\0';
+	close(p[0]);
+
+	int status = 0;
+	waitpid(pid, &status, 0);
+	return WIFEXITED(status) && WEXITSTATUS(status) == 0;
+}
+
+/* Corre argv como el usuario de la sesion, sin shell. */
+static void run_quiet(const char *const argv[]) {
+	pid_t pid = fork();
+	if (pid == 0) {
+		drop_privileges();
+		execvp(argv[0], (char *const *)argv);
+		_exit(127);
+	}
+	if (pid > 0) {
+		int status = 0;
+		waitpid(pid, &status, 0);
+	}
+}
+
 /* Si el display X11 tiene exactamente ese tamano, es la pantalla que cubre
  * xwayland-satellite. */
 static int x11_cubre(int w, int h) {
-	FILE *f = popen("xdotool getdisplaygeometry 2>/dev/null", "r");
-	if (!f)
+	char out[64];
+	const char *argv[] = { "xdotool", "getdisplaygeometry", NULL };
+
+	if (!run_capture(argv, out, sizeof(out)))
 		return 0;
 
 	int dw = 0, dh = 0;
-	int ok = (fscanf(f, "%d %d", &dw, &dh) == 2);
-	pclose(f);
-
-	return ok && dw == w && dh == h;
+	return sscanf(out, "%d %d", &dw, &dh) == 2 && dw == w && dh == h;
 }
 
 static void notify(const char *action) {
@@ -164,7 +225,7 @@ static int open_virtual_mouse(void) {
 	if (uinput_mouse >= 0)
 		return uinput_mouse;
 
-	int fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
+	int fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK | O_CLOEXEC);
 	if (fd < 0)
 		return -1;
 
@@ -218,16 +279,14 @@ static void flush_sync(int fd) {
  * mouse virtual primero se empuja el cursor a una esquina (el compositor lo
  * topa ahi, sin importar la aceleracion) y despues se aplica el delta. */
 static void move_cursor_to_center(void) {
-	FILE *f = popen("dms ipc call ckeys center 2>/dev/null", "r");
-	if (!f)
+	char out[160];
+	const char *center_argv[] = { "dms", "ipc", "call", "ckeys", "center", NULL };
+
+	if (!run_capture(center_argv, out, sizeof(out)))
 		return;
 
-	char line[160] = {0};
 	int cx = 0, cy = 0, sw = 0, sh = 0;
-	int ok = 0;
-	if (fgets(line, sizeof(line), f))
-		ok = (sscanf(line, "%d %d %d %d", &cx, &cy, &sw, &sh) == 4 && cx > 0 && cy > 0);
-	pclose(f);
+	int ok = (sscanf(out, "%d %d %d %d", &cx, &cy, &sw, &sh) == 4 && cx > 0 && cy > 0);
 
 	if (!ok)
 		return;
@@ -235,10 +294,12 @@ static void move_cursor_to_center(void) {
 	/* en la pantalla de xwayland-satellite el movimiento absoluto de X11
 	 * es exacto */
 	if (x11_cubre(sw, sh)) {
-		char cmd[128];
-		snprintf(cmd, sizeof(cmd), "xdotool mousemove %d %d 2>/dev/null", cx, cy);
-		int rc = system(cmd);
-		(void)rc;
+		char xbuf[16], ybuf[16];
+		snprintf(xbuf, sizeof(xbuf), "%d", cx);
+		snprintf(ybuf, sizeof(ybuf), "%d", cy);
+
+		const char *move_argv[] = { "xdotool", "mousemove", xbuf, ybuf, NULL };
+		run_quiet(move_argv);
 		return;
 	}
 
@@ -498,9 +559,15 @@ static void armar_pidfile(void) {
 
 /* Si ya hay otra instancia viva, esta se va. */
 static int otra_instancia_viva(void) {
-	FILE *f = fopen(pidfile_path, "r");
-	if (!f)
+	int fd = open(pidfile_path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
+	if (fd < 0)
 		return 0;
+
+	FILE *f = fdopen(fd, "r");
+	if (!f) {
+		close(fd);
+		return 0;
+	}
 
 	int pid = 0;
 	if (fscanf(f, "%d", &pid) != 1)
@@ -526,12 +593,30 @@ static int otra_instancia_viva(void) {
 	return strstr(comm, "ckeys-hold") != NULL;
 }
 
+/* El directorio es del usuario, asi que root no puede seguir symlinks ni
+ * confiar en un archivo que ya exista ahi. */
 static void escribir_pidfile(void) {
-	FILE *f = fopen(pidfile_path, "w");
-	if (!f)
+	unlink(pidfile_path);
+
+	int fd = open(pidfile_path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0644);
+	if (fd < 0) {
+		fprintf(stderr, "ckeys-hold: no pude escribir %s: %s\n",
+		        pidfile_path, strerror(errno));
 		return;
-	fprintf(f, "%d\n", (int)getpid());
-	fclose(f);
+	}
+
+	if (geteuid() == 0) {
+		int rc = fchown(fd, session_uid(), session_gid());
+		(void)rc;
+	}
+
+	char buf[32];
+	int n = snprintf(buf, sizeof(buf), "%d\n", (int)getpid());
+	if (n > 0) {
+		ssize_t written = write(fd, buf, (size_t)n);
+		(void)written;
+	}
+	close(fd);
 }
 
 int main(int argc, char **argv) {
@@ -563,7 +648,7 @@ int main(int argc, char **argv) {
 		char path[64];
 		snprintf(path, sizeof(path), "/dev/input/event%d", i);
 
-		int fd = open(path, O_RDONLY | O_NONBLOCK);
+		int fd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
 		if (fd < 0)
 			continue;
 
@@ -656,7 +741,7 @@ int main(int argc, char **argv) {
 				close(devs[i].fd);
 				char path[64];
 				snprintf(path, sizeof(path), "/dev/input/event%d", devs[i].event_no);
-				int nfd = open(path, O_RDONLY | O_NONBLOCK);
+				int nfd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
 				if (nfd < 0)
 					continue;
 				devs[i].fd = nfd;
